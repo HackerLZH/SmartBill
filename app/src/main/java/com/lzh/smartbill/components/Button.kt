@@ -30,6 +30,7 @@ import kotlin.time.Duration.Companion.milliseconds
 /**
  * uri: 当前文件
  * parent：父目录
+ * onDepressionFinished：压缩完成回调
  */
 @Composable
 fun DecompressButton(
@@ -86,6 +87,7 @@ fun DecompressButton(
                     value = password, // 显示密码
                     onValueChange = { password = it }, // 更新密码
                     label = { Text("密码") },
+                    placeholder = { Text("无密码可不填", color = MaterialTheme.colorScheme.secondary) },
                     singleLine = true
                 )
             },

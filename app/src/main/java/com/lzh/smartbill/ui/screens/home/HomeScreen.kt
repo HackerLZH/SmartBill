@@ -105,7 +105,10 @@ fun Home(innerPadding: PaddingValues) {
 }
 
 @Composable
-private fun BillItem(billList: List<Any>, onDepressionFinished: () -> Unit) {
+private fun BillItem(
+    billList: List<Any>
+    , onDepressionFinished: () -> Unit
+) {
     LazyColumn {
         items(billList) {
             when (it) {
