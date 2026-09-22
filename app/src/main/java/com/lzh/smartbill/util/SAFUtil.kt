@@ -76,6 +76,7 @@ object SAFUtil {
             val zipFile = ZipFile(tempZip)
             if (zipFile.isEncrypted) {
                 if (password.isNullOrEmpty()) {
+                    showError(context, "此 ZIP 需要密码")
                     throw IllegalArgumentException("此 ZIP 需要密码")
                 }
                 zipFile.setPassword(password.toCharArray())
