@@ -48,6 +48,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.documentfile:documentfile:1.1.0")
     implementation("net.lingala.zip4j:zip4j:2.11.5")
+    implementation("org.jetbrains.kotlin:kotlin-dataframe:2.4.20")
+    implementation("androidx.work:work-runtime-ktx:2.11.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
+    implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation(libs.androidx.material3)
 
     testImplementation(libs.junit)

@@ -31,10 +31,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.lzh.smartbill.components.AnalyzingIndicator
 import com.lzh.smartbill.components.DecompressButton
+import com.lzh.smartbill.util.AnalysisUtil
 import com.lzh.smartbill.util.SAFUtil
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,13 +48,23 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun Home(innerPadding: PaddingValues) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     var treeUri by remember { mutableStateOf(SAFUtil.getValidUri(context)) }
     var hasZip by remember { mutableStateOf(false) } // 是否有新增压缩包
     val alipayList = remember { mutableStateListOf<AlipayBill>() }
     var refreshCount by remember { mutableStateOf(0) }
+    var analysisFinished by remember { mutableStateOf(AnalysisUtil.getFinished(context)) }
+    var analyzing by remember { mutableStateOf(false) }
+
     val scope = rememberCoroutineScope()
 
     val primaryRootUri = "content://com.android.externalstorage.documents/tree/primary".toUri()
+
+
+    fun onFinish() {
+        analyzing = false
+        analysisFinished = true
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocumentTree() // 打开手机目录树
@@ -62,6 +77,14 @@ fun Home(innerPadding: PaddingValues) {
             openDocumentSettings(context)
         }
     }
+    // APP切回前台时执行
+    LifecycleResumeEffect(Unit) {
+        if (analyzing) {
+            AnalysisUtil.checkAnalysisStatus(context) { onFinish() }
+        }
+
+        onPauseOrDispose {  }
+    }
 
     LaunchedEffect(treeUri, refreshCount) {
         treeUri?.let {
@@ -71,6 +94,10 @@ fun Home(innerPadding: PaddingValues) {
             list.forEach {
                 if (it.name?.endsWith(".zip") == true) {
                     hasZip = true
+                    if (analysisFinished) {
+                        AnalysisUtil.setFinished(context, false)
+                        analysisFinished = false
+                    }
                     return@forEach
                 }
             }
@@ -96,8 +123,28 @@ fun Home(innerPadding: PaddingValues) {
                 Text("支付宝")
                 BillItem(alipayList, onDepressionFinished = { refreshCount++ })
             } else {
-                Button(onClick = {}) {
-                    Text("分析账单")
+                if (!analysisFinished) {
+                    if (analyzing) {
+                        AnalyzingIndicator()  // 动态旋转效果
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text("正在分析...", fontWeight = FontWeight.Bold)
+                    } else {
+                        Button(onClick = {
+                            analyzing = true
+                            AnalysisUtil.doAnalysis(
+                                context
+                                , lifecycleOwner
+                                , alipayList
+                            ) {
+                                onFinish()
+                            }
+                        }) {
+                            Text("分析账单")
+                        }
+                    }
+                } else {
+                    // TODO 显示分析结果
+                    Text("分析结果")
                 }
             }
         }
