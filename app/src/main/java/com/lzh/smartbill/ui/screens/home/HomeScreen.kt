@@ -1,5 +1,7 @@
 package com.lzh.smartbill.ui.screens.home
 
+import android.R.attr.text
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -8,6 +10,7 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,8 +20,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import androidx.core.net.toUri
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.compose.LifecycleResumeEffect
@@ -55,6 +62,7 @@ fun Home(innerPadding: PaddingValues) {
     var refreshCount by remember { mutableStateOf(0) }
     var analysisFinished by remember { mutableStateOf(AnalysisUtil.getFinished(context)) }
     var analyzing by remember { mutableStateOf(false) }
+    var showDialog by remember { mutableStateOf(true) }
 
     val scope = rememberCoroutineScope()
 
@@ -77,6 +85,15 @@ fun Home(innerPadding: PaddingValues) {
             openDocumentSettings(context)
         }
     }
+
+    val launcher_permission = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) {
+        if (!it) {
+            (context as Activity).finish()
+        }
+    }
+
     // APP切回前台时执行
     LifecycleResumeEffect(Unit) {
         if (analyzing) {
@@ -129,17 +146,25 @@ fun Home(innerPadding: PaddingValues) {
                         Spacer(modifier = Modifier.width(12.dp))
                         Text("正在分析...", fontWeight = FontWeight.Bold)
                     } else {
-                        Button(onClick = {
-                            analyzing = true
-                            AnalysisUtil.doAnalysis(
-                                context
-                                , lifecycleOwner
-                                , alipayList
-                            ) {
-                                onFinish()
+                        Box() {
+                            Button(onClick = {
+                                if (!AnalysisUtil.checkPermission(context, launcher_permission)) {
+                                    return@Button
+                                }
+                                analyzing = true
+                                AnalysisUtil.doAnalysis(
+                                    context
+                                    , lifecycleOwner
+                                    , alipayList
+                                ) {
+                                    onFinish()
+                                }
+                            }) {
+                                Text("分析账单")
                             }
-                        }) {
-                            Text("分析账单")
+                            if (showDialog) {
+                                ShowDialog(onClose = {showDialog = false})
+                            }
                         }
                     }
                 } else {
@@ -173,6 +198,47 @@ private fun BillItem(
             }
         }
     }
+}
+
+@Composable
+fun ShowDialog(
+    onClose: () -> Unit
+) {
+    val context = LocalContext.current
+    AlertDialog(
+        onDismissRequest = onClose
+        , title = { Text("获得更好体验") }
+        , text = { Text("前往设置，开启应用悬浮通知") }
+        , confirmButton = {
+            TextButton(
+                onClick = {
+                    onClose()
+                    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                        putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    }
+                    if (intent.resolveActivity(context.packageManager) != null) {
+                        context.startActivity(intent)
+                    } else {
+                        // 降级：跳转到应用详情
+                        context.startActivity(
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                                data = "package:${context.packageName}".toUri()
+                            }
+                        )
+                    }
+                },
+            ) {
+                Text("前往")
+            }
+        }
+        , dismissButton = {
+            TextButton(
+                onClick = onClose
+            ) {
+                Text("已开启")
+            }
+        }
+    )
 }
 
 /**
